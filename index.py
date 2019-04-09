@@ -12,8 +12,9 @@ set_auth_token()
 # create_playlist()
 
 # audits
-audit_playlist()
+# audit_playlist()
 
+merge_all('merge_all')
 
 # epilog
-store_artifacts()
+# store_artifacts()

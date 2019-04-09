@@ -23,9 +23,22 @@ def set_auth_token():
     headers["Authorization"] = token
 
 
+def get_next(q):
+    resp = requests.get(q, headers=headers)
+    return resp
+
+def add_songs(id, body):
+        url = "https://api.spotify.com/v1/playlists/" + id + "/tracks"
+        resp = requests.post(url, headers=headers, json=body)
+        return resp
 # audits
 def get_playlist():
     url = get_endpoint("v1/me/playlists")
+    resp = requests.get(url, headers=headers)
+    return resp
+
+def get_specified_playlist(id):
+    url = get_endpoint("v1/playlists/" + id)
     resp = requests.get(url, headers=headers)
     return resp
 
@@ -82,12 +95,15 @@ def get_json_file(file_path):
         data = json.load(fp)
     return data
 
-def create_playlist():
+def create_playlist(override):
     emoji_l = get_json_file("fun/emojis.json")
     EMOJI_MAX_RANGE = len(emoji_l)
     random_n = randint(0, EMOJI_MAX_RANGE)
     playlist_name = emoji_l[random_n]['emoji']
     url = get_endpoint("v1/me/playlists")
+    if override:
+            playlist_name = override
+
     body = {
         "name": playlist_name,
         "public": True
@@ -98,4 +114,57 @@ def create_playlist():
 def populate_from_existing_playlists():
     pass
 
-def ():
+def get_playlist_songs():
+        playlists = get_playlist().json()
+        save_dataset(playlists, "dataset/sets2.json")
+        p_ids = []
+        tot_list = []
+        for i in playlists['items']:
+                p_ids.append(i['id'])
+        trecks = []
+        abs_tracks = []
+        for j in p_ids:
+                p_list = get_specified_playlist(j).json()
+                for q in p_list['tracks']['items']:
+                        trecks.append(q['track']['uri'])
+        while playlists['next']:
+                resp = get_next(playlists['next']).json()
+                new_pids = []
+                for i in resp['items']:
+                        new_pids.append(i['id'])
+                for j in p_ids:
+                        p_list = get_specified_playlist(j).json()
+                        for q in p_list['tracks']['items']:
+                                trecks.append(q['track']['uri'])
+                save_dataset(playlists, "dataset/sets2.json")
+                playlists['next'] = resp['next']
+        save_dataset(playlists, "dataset/sets.json")
+        return trecks
+
+def merge_all(p_type):
+        songs = get_playlist_songs()
+        # todo quick maths divide and conquer
+        chunk_norris = [songs[i:i + 100] for i in range(0, len(songs), 100)]
+        chunkID = 0
+        # generate chunked playlists w equal distribution
+        if p_type is 'shuffle_board':
+                for chunk in chunk_norris:
+                        body = {
+                                'uris': chunk
+                        }
+                        save_dataset(body, "debug/payload.shuffle-" + str(chunkID) + ".json")
+                        new_plist_id = create_playlist().json()['id']
+                        resp = add_songs(new_plist_id, body).json()
+                        save_dataset(resp, "debug/snapshot.shuffle-" + str(chunkID) + ".json")
+                        chunkID = chunkID + 1
+        # one list
+        if p_type is 'merge_all':
+                new_plist_id = create_playlist(':)').json()['id']
+                for chunk in chunk_norris:
+                        body = {
+                                'uris': chunk
+                        }
+                        save_dataset(body, "debug/payload.mergeall-" + str(chunkID) + ".json")
+                        resp = add_songs(new_plist_id, body).json()
+                        save_dataset(resp, "debug/snapshot.mergeall-" + str(chunkID) + ".json")
+                        chunkID = chunkID + 1
