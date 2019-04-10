@@ -1,6 +1,8 @@
+import time
 import os
 import requests
 import json
+from pathlib import Path
 
 base_uri = "https://api.spotify.com/"
 headers = {
@@ -20,7 +22,7 @@ def get_endpoint(query):
 def set_auth_token():
     API_KEY = os.getenv("API_TOKEN")
     token = "Bearer " + API_KEY
-    headers["Authorization"] = token
+    headers["Authorization"] = str(token)
 
 
 def get_next(q):
@@ -168,3 +170,18 @@ def merge_all(p_type):
                         resp = add_songs(new_plist_id, body).json()
                         save_dataset(resp, "debug/snapshot.mergeall-" + str(chunkID) + ".json")
                         chunkID = chunkID + 1
+
+def thank_you_next(shouldLoadDynamic=False):
+        if shouldLoadDynamic is True:
+                from dotenv import load_dotenv, find_dotenv
+                load_dotenv(find_dotenv())
+                set_auth_token()
+        url = get_endpoint("v1/me/player/next")
+        requests.post(url, headers=headers)
+        return get_current_running()
+
+def get_current_running():
+        # concurrency <3
+        time.sleep(5)
+        url2 = get_endpoint("v1/me/player/currently-playing")
+        return requests.get(url2, headers=headers).json()
